@@ -3,6 +3,7 @@ using Microsoft.AspNet.Identity;
 using Microsoft.AspNet.Identity.Owin;
 using System;
 using System.Collections.Generic;
+using System.Data.Entity.Migrations;
 using System.Linq;
 using System.Web;
 using System.Web.Mvc;
@@ -12,6 +13,7 @@ namespace BigSchool.Controllers
     public class CoursesController : Controller
     {
         // GET: Courses
+        BigSchoolCT context = new BigSchoolCT();
         public ActionResult Create()
         {
             //get list category
@@ -59,6 +61,25 @@ namespace BigSchool.Controllers
             }
             return View(courses);
         }
+        public ActionResult Delete(int? id)
+        {
+
+            Course course = context.Courses.Find(id);
+            return View(course);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Delete(int id)
+        {
+            ApplicationUser currentUser = System.Web.HttpContext.Current.GetOwinContext().GetUserManager<ApplicationUserManager>().FindById(System.Web.HttpContext.Current.User.Identity.GetUserId());
+            Course course = context.Courses.Find(id);
+            Attendance attendance = context.Attendances.Find(id, currentUser.Id);
+            context.Attendances.Remove(attendance);
+            context.SaveChanges();
+            context.Courses.Remove(course);
+            context.SaveChanges();
+            return RedirectToAction("Mine", "Courses");
+        }
         public ActionResult Mine()
         {
             BigSchoolCT con = new BigSchoolCT();
@@ -71,6 +92,38 @@ namespace BigSchool.Controllers
                 i.LecturerName = currentUser.Name;
             }
             return View(courses);
+        }
+        public ActionResult Edit(int? id)
+        {
+            Course course = context.Courses.Find(id);
+            course.ListCategory = context.Categories.ToList();
+            if (id == null)
+            {
+                return HttpNotFound();
+            }
+            if (course == null)
+            {
+                return HttpNotFound();
+            }
+            return View(course);
+        }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public ActionResult Edit(Course objcourse)
+        {
+            if (!ModelState.IsValid)
+            {
+                objcourse.ListCategory = context.Categories.ToList();
+                return View("Edit", objcourse);
+            }
+
+            ApplicationUser user = System.Web.HttpContext.Current.GetOwinContext().GetUserManager<ApplicationUserManager>().FindById(System.Web.HttpContext.Current.User.Identity.GetUserId());
+            objcourse.LectureId = user.Id;
+
+            context.Courses.AddOrUpdate(objcourse);
+            context.SaveChanges();
+
+            return RedirectToAction("Index", "Home");
         }
     }
 }
